@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>plexus-parent</artifactId>
+        <groupId>com.nukkitx</groupId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>plexus-proxy</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.nukkitx</groupId>
+            <artifactId>plexus-api</artifactId>
+            <version>${api.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.nukkitx</groupId>
+            <artifactId>common</artifactId>
+            <version>${common.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.nukkitx.protocol</groupId>
+            <artifactId>bedrock-v340</artifactId>
+            <version>1.1.0-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.nukkitx.network</groupId>
+            <artifactId>synapse</artifactId>
+            <version>${network.version}</version>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
+</project>
