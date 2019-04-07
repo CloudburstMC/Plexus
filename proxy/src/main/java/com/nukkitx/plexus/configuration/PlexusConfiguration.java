@@ -1,7 +1,7 @@
 package com.nukkitx.plexus.configuration;
 
 import com.nukkitx.plexus.api.configuration.Configuration;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.yaml.snakeyaml.Yaml;
 
 import javax.annotation.Nonnull;
@@ -11,7 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class PlexusConfiguration implements Configuration {
 
     private final static Yaml yaml = new Yaml();
