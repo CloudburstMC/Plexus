@@ -68,7 +68,7 @@
         <maven.build.timestamp.format>HHmm-ddMMyyyy</maven.build.timestamp.format>
 
         <api.version>1.0.0-SNAPSHOT</api.version>
-        <common.version>1.0.2-SNAPSHOT</common.version>
+        <common.version>1.0.1-SNAPSHOT</common.version>
         <network.version>1.3.0-SNAPSHOT</network.version>
     </properties>
 

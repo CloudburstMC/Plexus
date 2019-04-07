@@ -8,7 +8,6 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.nukkitx.event.SimpleEventManager;
 import com.nukkitx.network.NetworkListener;
 import com.nukkitx.plexus.api.Proxy;
-import com.nukkitx.plexus.console.PlexusTerminalConsole;
 import com.nukkitx.plugin.SimplePluginManager;
 import com.nukkitx.protocol.bedrock.BedrockPacketCodec;
 import com.nukkitx.protocol.bedrock.v340.Bedrock_v340;
@@ -45,12 +44,9 @@ public class PlexusProxy implements Proxy {
     private final List<NetworkListener> listeners = new CopyOnWriteArrayList<>();
     @Getter(AccessLevel.NONE)
     private final AtomicBoolean running = new AtomicBoolean(true);
-    @Getter(AccessLevel.NONE)
-    private final PlexusTerminalConsole console = new PlexusTerminalConsole(this);
-    @Getter(AccessLevel.NONE)
-    private final Thread consoleThread = new Thread(console);
     private final Path dataPath;
     private final Path pluginPath;
+
 
     public void boot() throws Exception {
         Preconditions.checkArgument(!running.get(), "Plexus has already been booted");
