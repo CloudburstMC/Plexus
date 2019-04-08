@@ -19,14 +19,16 @@ public class PlexusConfiguration implements Configuration {
     private final Path path;
 
     @Override
-    public void save() throws IOException {
+    public Configuration save() throws IOException {
         String writingData = yaml.dump(this.values);
         Files.writeString(this.path, writingData);
+        return this;
     }
 
     @Override
-    public void load() throws IOException {
+    public Configuration load() throws IOException {
         this.values = yaml.load(Files.newInputStream(this.path));
+        return this;
     }
 
     @Override

@@ -7,9 +7,9 @@ import java.util.Set;
 
 public interface Configuration {
 
-    void save() throws IOException;
+    Configuration save() throws IOException;
 
-    void load() throws IOException;
+    Configuration load() throws IOException;
 
     boolean exists(@Nonnull String key);
 
