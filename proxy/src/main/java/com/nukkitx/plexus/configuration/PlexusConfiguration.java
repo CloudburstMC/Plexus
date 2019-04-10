@@ -27,7 +27,7 @@ public class PlexusConfiguration implements Configuration {
 
     @Override
     public Configuration load() throws IOException {
-        this.values = yaml.load(Files.newInputStream(this.path));
+        this.values = yaml.loadAs(Files.newInputStream(this.path), Map.class);
         return this;
     }
 
