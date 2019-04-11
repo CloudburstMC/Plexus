@@ -9,6 +9,7 @@ import com.nukkitx.event.SimpleEventManager;
 import com.nukkitx.network.NetworkListener;
 import com.nukkitx.plexus.api.Proxy;
 import com.nukkitx.plexus.configuration.PlexusConfigurationManager;
+import com.nukkitx.plexus.network.NetworkManager;
 import com.nukkitx.plugin.SimplePluginManager;
 import com.nukkitx.protocol.bedrock.BedrockPacketCodec;
 import com.nukkitx.protocol.bedrock.v340.Bedrock_v340;
@@ -48,17 +49,19 @@ public class PlexusProxy implements Proxy {
     private final Path dataPath;
     private final Path pluginPath;
 
+    private NetworkManager networkManager;
+
     private final PlexusConfigurationManager configurationManager = new PlexusConfigurationManager(this.dataPath, this.pluginPath);
 
     public void boot() throws Exception {
         Preconditions.checkArgument(!running.get(), "Plexus has already been booted");
         Thread.currentThread().setName("Main Thread");
 
-
+        this.networkManager = new NetworkManager();
     }
 
     public void shutdown() {
-
+        this.networkManager.close();
     }
 
     public boolean isRunning() {
