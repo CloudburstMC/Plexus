@@ -45,18 +45,19 @@ public class PlexusProxy implements Proxy {
     @Getter(AccessLevel.NONE)
     private final List<NetworkListener> listeners = new CopyOnWriteArrayList<>();
     @Getter(AccessLevel.NONE)
-    private final AtomicBoolean running = new AtomicBoolean(true);
+    private final AtomicBoolean running = new AtomicBoolean();
     private final Path dataPath;
     private final Path pluginPath;
 
     private NetworkManager networkManager;
 
-    private final PlexusConfigurationManager configurationManager = new PlexusConfigurationManager(this.dataPath, this.pluginPath);
+    private PlexusConfigurationManager configurationManager;
 
     public void boot() throws Exception {
         Preconditions.checkArgument(!running.get(), "Plexus has already been booted");
         Thread.currentThread().setName("Main Thread");
 
+        this.configurationManager = new PlexusConfigurationManager(this.dataPath, this.pluginPath);
         this.networkManager = new NetworkManager();
     }
 

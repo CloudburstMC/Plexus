@@ -1,5 +1,6 @@
 package com.nukkitx.plexus.configuration;
 
+import com.google.common.base.Charsets;
 import com.nukkitx.plexus.api.configuration.Configuration;
 import lombok.RequiredArgsConstructor;
 import org.yaml.snakeyaml.Yaml;
@@ -21,7 +22,7 @@ public class PlexusConfiguration implements Configuration {
     @Override
     public Configuration save() throws IOException {
         String writingData = yaml.dump(this.values);
-        Files.writeString(this.path, writingData);
+        Files.write(this.path, writingData.getBytes(Charsets.UTF_8));
         return this;
     }
 

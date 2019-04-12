@@ -7,10 +7,10 @@ import java.net.InetSocketAddress;
 
 public class ProxyEventListener implements RakNetServerEventListener {
 
-    //TODO Modifyable 
+    //TODO Modifyable
     private final Advertisement advertisement = new Advertisement("MCPE", "Plexus",
             0, "0", 0,
-            1, "https://github.com/NukkitX/ProxyPass", "SMP");
+            1, "PlexusProxy", "SMP");
 
     @Nonnull
     @Override

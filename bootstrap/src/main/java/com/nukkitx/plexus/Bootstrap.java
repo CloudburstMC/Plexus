@@ -1,8 +1,10 @@
 package com.nukkitx.plexus;
 
 import joptsimple.*;
+import joptsimple.util.PathConverter;
 import lombok.extern.log4j.Log4j2;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -20,11 +22,13 @@ public class Bootstrap {
         OptionSpec<Void> helpSpec = parser.accepts("help", "shows this page").forHelp();
         OptionSpec<Path> dataPathSpec = parser.accepts("data-path", "path of main server data e.g. plexus.yml")
                 .withRequiredArg()
-                .ofType(Path.class)
+                .ofType(File.class)
+                .withValuesConvertedBy(new PathConverter())
                 .defaultsTo(path);
         OptionSpec<Path> pluginPathSpec = parser.accepts("plugin-path", "path to your plugins directory")
                 .withRequiredArg()
-                .ofType(Path.class)
+                .ofType(File.class)
+                .withValuesConvertedBy(new PathConverter())
                 .defaultsTo(path.resolve("plugins"));
 
         OptionSet options = parser.parse(args);
