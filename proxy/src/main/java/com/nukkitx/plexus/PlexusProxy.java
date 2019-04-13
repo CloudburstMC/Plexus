@@ -12,7 +12,6 @@ import com.nukkitx.plexus.configuration.PlexusConfigurationManager;
 import com.nukkitx.plexus.network.NetworkManager;
 import com.nukkitx.plugin.SimplePluginManager;
 import com.nukkitx.protocol.bedrock.BedrockPacketCodec;
-import com.nukkitx.protocol.bedrock.v340.Bedrock_v340;
 import com.nukkitx.service.SimpleServiceManager;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -30,7 +29,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class PlexusProxy implements Proxy {
     public static final ObjectMapper JSON_MAPPER = new ObjectMapper().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
     public static final YAMLMapper YAML_MAPPER = (YAMLMapper) new YAMLMapper().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-    public static final BedrockPacketCodec MINECRAFT_CODEC = Bedrock_v340.V340_CODEC;
     //public static final String NAME;
     //public static final SemVer API_VERSION;
     //public static final String PLEXUS_VERSION;
