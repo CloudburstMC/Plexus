@@ -54,7 +54,7 @@ public class ProxyPlayerSession implements PlayerSession {
             if (!packetsHandled) {
                 packet.getBatched().retain();
                 packet.getBatched().readerIndex(0);
-                packet.getBatched().writerIndex(packet.getBatched().readableBytes());
+                packet.getBatched().writerIndex(0);
                 session.sendWrapped(packet);
             }
         }
