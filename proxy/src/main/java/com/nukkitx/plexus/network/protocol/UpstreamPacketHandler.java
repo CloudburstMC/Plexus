@@ -165,9 +165,8 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
                 login.setProtocolVersion(NetworkManager.PROTOCOL_VERSION);
 
                 session.sendPacketImmediately(login);
-                this.session.setWrapperTailHandler(proxySession.getUpstreamWrapperTailHandler(this.session));
-                session.setWrapperTailHandler(proxySession.getDownstreamWrapperTailHandler(session));
-                this.session.setLogging(false);
+                this.session.setWrapperTailHandler(proxySession.getUpstreamWrapperTailHandler(session));
+                session.setWrapperTailHandler(proxySession.getDownstreamWrapperTailHandler(this.session));
                 //session.setLogging(false);
 
                 log.debug("Downstream connected");
