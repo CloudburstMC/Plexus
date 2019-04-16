@@ -35,6 +35,7 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
 
     private final BedrockSession<ProxyPlayerSession> session;
     private final NetworkManager networkManager;
+    private PlexusPlayer plexusPlayer;
     private JSONObject skinData;
     private JSONObject extraData;
     private ArrayNode chainData;
@@ -106,16 +107,28 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
             }
 
             extraData = (JSONObject) jwt.getPayload().toJSONObject().get("extraData");
+            UUID uuid = UUID.fromString(extraData.getAsString("identity"));
+            String displayName = extraData.getAsString("displayName");
+            System.out.println(networkManager.getPlayerSessions());
+            if(networkManager.getPlayerSessions().containsKey(uuid)) {
+                //TODO Reverse this
+                session.disconnect("disconnectionScreen.loggedinOtherLocation");
+                throw new RuntimeException("Duplicate login entry for " + uuid);
+            }
+            this.plexusPlayer = new PlexusPlayer(uuid, displayName, this);
+            networkManager.getPlayerSessions().put(uuid, plexusPlayer);
+
+            session.getPlayer().setPlexusPlayer(plexusPlayer);
 
             session.setAuthData(new AuthData() {
                 @Override
                 public String getDisplayName() {
-                    return extraData.getAsString("displayName");
+                    return displayName;
                 }
 
                 @Override
                 public UUID getIdentity() {
-                    return UUID.fromString(extraData.getAsString("identity"));
+                    return uuid;
                 }
 
                 @Override
@@ -133,48 +146,56 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
             verifyJwt(clientJwt, identityPublicKey);
             skinData = clientJwt.getPayload().toJSONObject();
 
-            PlexusPlayer plexusPlayer = new PlexusPlayer(this);
-
-            log.debug("Initializing proxy session");
-            networkManager.getRakNetClient().connect(new InetSocketAddress("127.0.0.1", 19134)).whenComplete((session, throwable) -> {
-                if (throwable != null) {
-                    log.error("Unable to connect to downstream server", throwable);
-                    session.disconnect("Unable to connect to downstream server");
-                    return;
-                }
-                plexusPlayer.setServerConnection(session);
-                ProxyPlayerSession proxySession = new ProxyPlayerSession();
-                session.setPlayer(proxySession);
-
-                SignedJWT authData = EncryptionUtils.forgeAuthData(proxySession.getProxyKeyPair(), extraData);
-                JWSObject skinData = EncryptionUtils.forgeSkinData(proxySession.getProxyKeyPair(), this.skinData);
-                chainData.remove(chainData.size() - 1);
-                chainData.add(authData.serialize());
-                JsonNode json = PlexusProxy.JSON_MAPPER.createObjectNode().set("chain", chainData);
-                AsciiString chainData;
-                try {
-                    chainData = new AsciiString(PlexusProxy.JSON_MAPPER.writeValueAsBytes(json));
-                } catch (JsonProcessingException e) {
-                    throw new RuntimeException(e);
-                }
-
-
-                LoginPacket login = new LoginPacket();
-                login.setChainData(chainData);
-                login.setSkinData(AsciiString.of(skinData.serialize()));
-                login.setProtocolVersion(NetworkManager.PROTOCOL_VERSION);
-
-                session.sendPacketImmediately(login);
-                this.session.setWrapperTailHandler(proxySession.getUpstreamWrapperTailHandler(session));
-                session.setWrapperTailHandler(proxySession.getDownstreamWrapperTailHandler(this.session));
-                //session.setLogging(false);
-
-                log.debug("Downstream connected");
-            });
+            connect(new InetSocketAddress("127.0.0.1", 19134));
         } catch (Exception e) {
             session.disconnect("disconnectionScreen.internalError.cantConnect");
             throw new RuntimeException("Unable to complete login", e);
         }
         return true;
+    }
+
+    public void connect(InetSocketAddress address) {
+        log.debug("Initializing proxy session");
+        if(this.plexusPlayer != null && this.plexusPlayer.getServerConnection() != null && !this.plexusPlayer.getServerConnection().isClosed()) {
+            this.plexusPlayer.closeDownstream();
+        }
+        if(this.plexusPlayer == null) {
+            log.debug("PlexusPlayer is null");
+        }
+        networkManager.getRakNetClient().connect(address).whenComplete((session, throwable) -> {
+            if (throwable != null) {
+                log.error("Unable to connect to downstream server", throwable);
+                session.disconnect("Unable to connect to downstream server");
+                return;
+            }
+            plexusPlayer.setServerConnection(session);
+            ProxyPlayerSession proxySession = new ProxyPlayerSession(this.networkManager, false);
+            session.setPlayer(proxySession);
+
+            SignedJWT authData = EncryptionUtils.forgeAuthData(proxySession.getProxyKeyPair(), extraData);
+            JWSObject skinData = EncryptionUtils.forgeSkinData(proxySession.getProxyKeyPair(), this.skinData);
+            chainData.remove(chainData.size() - 1);
+            chainData.add(authData.serialize());
+            JsonNode json = PlexusProxy.JSON_MAPPER.createObjectNode().set("chain", chainData);
+            AsciiString chainData;
+            try {
+                chainData = new AsciiString(PlexusProxy.JSON_MAPPER.writeValueAsBytes(json));
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+
+
+            LoginPacket login = new LoginPacket();
+            login.setChainData(chainData);
+            login.setSkinData(AsciiString.of(skinData.serialize()));
+            login.setProtocolVersion(NetworkManager.PROTOCOL_VERSION);
+
+            session.sendPacketImmediately(login);
+            this.session.setWrapperTailHandler(proxySession.getUpstreamWrapperTailHandler(session));
+            session.setWrapperTailHandler(proxySession.getDownstreamWrapperTailHandler(this.session));
+            //session.setLogging(false);
+
+            log.debug("Downstream connected");
+        });
     }
 }

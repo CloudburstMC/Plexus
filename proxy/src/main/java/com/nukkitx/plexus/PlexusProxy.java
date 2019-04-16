@@ -11,7 +11,6 @@ import com.nukkitx.plexus.api.Proxy;
 import com.nukkitx.plexus.configuration.PlexusConfigurationManager;
 import com.nukkitx.plexus.network.NetworkManager;
 import com.nukkitx.plugin.SimplePluginManager;
-import com.nukkitx.protocol.bedrock.BedrockPacketCodec;
 import com.nukkitx.service.SimpleServiceManager;
 import lombok.AccessLevel;
 import lombok.Getter;

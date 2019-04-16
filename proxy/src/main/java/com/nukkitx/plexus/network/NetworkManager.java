@@ -4,6 +4,7 @@ import com.nukkitx.network.raknet.RakNetClient;
 import com.nukkitx.network.raknet.RakNetServer;
 import com.nukkitx.plexus.network.protocol.DownstreamPacketHandler;
 import com.nukkitx.plexus.network.protocol.UpstreamPacketHandler;
+import com.nukkitx.plexus.network.session.PlexusPlayer;
 import com.nukkitx.plexus.network.session.PlexusSessionManager;
 import com.nukkitx.plexus.network.session.ProxyPlayerSession;
 import com.nukkitx.protocol.bedrock.BedrockPacketCodec;
@@ -14,6 +15,9 @@ import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 
 import java.net.InetSocketAddress;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Log4j2
 public class NetworkManager {
@@ -25,6 +29,9 @@ public class NetworkManager {
     @Getter
     private final RakNetClient<BedrockSession<ProxyPlayerSession>> rakNetClient;
 
+    @Getter
+    private final Map<UUID, PlexusPlayer> playerSessions = new ConcurrentHashMap<>();
+
     public NetworkManager() {
         RakNetServer.Builder<BedrockSession<ProxyPlayerSession>> serverBuilder = RakNetServer.builder();
         this.rakNetServer = serverBuilder
@@ -34,6 +41,7 @@ public class NetworkManager {
                 .sessionManager(new PlexusSessionManager(50))
                 .sessionFactory(rakNetSession -> {
                     BedrockSession<ProxyPlayerSession> session = new BedrockSession<>(rakNetSession);
+                    session.setPlayer(new ProxyPlayerSession(this, true));
                     session.setHandler(new UpstreamPacketHandler(session, this));
                     return session;
                 })
