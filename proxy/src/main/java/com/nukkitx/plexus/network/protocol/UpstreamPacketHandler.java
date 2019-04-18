@@ -15,11 +15,14 @@ import com.nukkitx.plexus.network.session.PlexusPlayer;
 import com.nukkitx.plexus.network.session.ProxyPlayerSession;
 import com.nukkitx.plexus.utils.EncryptionUtils;
 import com.nukkitx.protocol.bedrock.handler.BedrockPacketHandler;
+import com.nukkitx.protocol.bedrock.packet.ChangeDimensionPacket;
+import com.nukkitx.protocol.bedrock.packet.FullChunkDataPacket;
 import com.nukkitx.protocol.bedrock.packet.LoginPacket;
 import com.nukkitx.protocol.bedrock.packet.PlayStatusPacket;
 import com.nukkitx.protocol.bedrock.session.BedrockSession;
 import com.nukkitx.protocol.bedrock.session.data.AuthData;
 import io.netty.util.AsciiString;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import net.minidev.json.JSONObject;
@@ -33,6 +36,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UpstreamPacketHandler implements BedrockPacketHandler {
 
+    @Getter
     private final BedrockSession<ProxyPlayerSession> session;
     private final NetworkManager networkManager;
     private PlexusPlayer plexusPlayer;
@@ -163,11 +167,32 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
             log.debug("PlexusPlayer is null");
         }
         networkManager.getRakNetClient().connect(address).whenComplete((session, throwable) -> {
+            if(plexusPlayer.getServerConnection() != null) {
+                log.debug("Changing dimension");
+                ChangeDimensionPacket changeDimensionPacket = new ChangeDimensionPacket();
+                changeDimensionPacket.setDimension(this.plexusPlayer.getNewDimensionId(this.plexusPlayer.getDimensionId()));
+                changeDimensionPacket.setPosition(this.plexusPlayer.getPlayerPosition().toFloat());
+                changeDimensionPacket.setRespawn(false);
+                int playerChunkX = this.plexusPlayer.getPlayerPosition().getX() >> 4;
+                int playerChunkZ = this.plexusPlayer.getPlayerPosition().getZ() >> 4;
+                int radius = this.plexusPlayer.getChunkRadius();
+                for (int chunkX = (playerChunkX - radius); chunkX < (playerChunkX + radius); chunkX++) {
+                    for (int chunkZ = (playerChunkZ - radius); chunkZ < (playerChunkZ + radius); chunkZ++) {
+                        FullChunkDataPacket fullChunkDataPacket = new FullChunkDataPacket();
+                        fullChunkDataPacket.setChunkX(chunkX);
+                        fullChunkDataPacket.setChunkZ(chunkZ);
+                        fullChunkDataPacket.setData(NetworkManager.EMPTY_CHUNK);
+                        this.session.sendPacketImmediately(fullChunkDataPacket);
+                    }
+                }
+            }
             if (throwable != null) {
                 log.error("Unable to connect to downstream server", throwable);
                 session.disconnect("Unable to connect to downstream server");
                 return;
             }
+            DownstreamPacketHandler downstreamPacketHandler = (DownstreamPacketHandler) session.getHandler();
+            downstreamPacketHandler.setPlexusPlayer(plexusPlayer);
             plexusPlayer.setServerConnection(session);
             ProxyPlayerSession proxySession = new ProxyPlayerSession(this.networkManager, false);
             session.setPlayer(proxySession);

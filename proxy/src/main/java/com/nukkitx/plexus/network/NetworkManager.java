@@ -25,6 +25,9 @@ public class NetworkManager {
     public static final BedrockPacketCodec CODEC = Bedrock_v340.V340_CODEC;
     public static final int PROTOCOL_VERSION = CODEC.getProtocolVersion();
 
+    public static final byte[] EMPTY_CHUNK = new byte[8192];
+
+
     private final RakNetServer<BedrockSession<ProxyPlayerSession>> rakNetServer;
     @Getter
     private final RakNetClient<BedrockSession<ProxyPlayerSession>> rakNetClient;
@@ -58,7 +61,7 @@ public class NetworkManager {
                 .sessionManager(new PlexusSessionManager(50))
                 .build();
 
-        if(this.rakNetServer.bind()) {
+        if (this.rakNetServer.bind()) {
             log.info("Yay we binded!");
         } else {
             log.warn("Failed to bind to port");

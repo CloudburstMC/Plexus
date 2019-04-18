@@ -16,8 +16,10 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Scanner;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -56,6 +58,12 @@ public class PlexusProxy implements Proxy {
 
         this.configurationManager = new PlexusConfigurationManager(this.dataPath, this.pluginPath);
         this.networkManager = new NetworkManager();
+
+        new Thread(() -> {
+            Scanner scanner = new Scanner(System.in);
+            String s = scanner.next();
+            networkManager.getPlayerSessions().values().iterator().next().switchServer(new InetSocketAddress("127.0.0.1", 19136));
+        }).start();
     }
 
     public void shutdown() {
