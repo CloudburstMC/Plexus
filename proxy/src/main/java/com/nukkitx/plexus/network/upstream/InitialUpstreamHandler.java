@@ -1,4 +1,4 @@
-package com.nukkitx.plexus.network.protocol;
+package com.nukkitx.plexus.network.upstream;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -11,16 +11,13 @@ import com.nimbusds.jose.crypto.factories.DefaultJWSVerifierFactory;
 import com.nimbusds.jwt.SignedJWT;
 import com.nukkitx.plexus.PlexusProxy;
 import com.nukkitx.plexus.network.NetworkManager;
-import com.nukkitx.plexus.network.session.PlexusPlayer;
 import com.nukkitx.plexus.network.session.ProxyPlayerSession;
+import com.nukkitx.plexus.network.session.data.AuthDataImpl;
 import com.nukkitx.plexus.utils.EncryptionUtils;
 import com.nukkitx.protocol.bedrock.handler.BedrockPacketHandler;
-import com.nukkitx.protocol.bedrock.packet.ChangeDimensionPacket;
-import com.nukkitx.protocol.bedrock.packet.FullChunkDataPacket;
 import com.nukkitx.protocol.bedrock.packet.LoginPacket;
 import com.nukkitx.protocol.bedrock.packet.PlayStatusPacket;
 import com.nukkitx.protocol.bedrock.session.BedrockSession;
-import com.nukkitx.protocol.bedrock.session.data.AuthData;
 import io.netty.util.AsciiString;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -29,17 +26,17 @@ import net.minidev.json.JSONObject;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.KeyPair;
 import java.security.interfaces.ECPublicKey;
 import java.util.UUID;
 
 @Log4j2
 @RequiredArgsConstructor
-public class UpstreamPacketHandler implements BedrockPacketHandler {
+public class InitialUpstreamHandler implements BedrockPacketHandler {
 
     @Getter
     private final BedrockSession<ProxyPlayerSession> session;
     private final NetworkManager networkManager;
-    private PlexusPlayer plexusPlayer;
     private JSONObject skinData;
     private JSONObject extraData;
     private ArrayNode chainData;
@@ -112,34 +109,10 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
 
             extraData = (JSONObject) jwt.getPayload().toJSONObject().get("extraData");
             UUID uuid = UUID.fromString(extraData.getAsString("identity"));
+            String xuid = extraData.getAsString("XUID");
             String displayName = extraData.getAsString("displayName");
-            System.out.println(networkManager.getPlayerSessions());
-            if(networkManager.getPlayerSessions().containsKey(uuid)) {
-                //TODO Reverse this
-                session.disconnect("disconnectionScreen.loggedinOtherLocation");
-                throw new RuntimeException("Duplicate login entry for " + uuid);
-            }
-            this.plexusPlayer = new PlexusPlayer(uuid, displayName, this);
-            networkManager.getPlayerSessions().put(uuid, plexusPlayer);
 
-            session.getPlayer().setPlexusPlayer(plexusPlayer);
-
-            session.setAuthData(new AuthData() {
-                @Override
-                public String getDisplayName() {
-                    return displayName;
-                }
-
-                @Override
-                public UUID getIdentity() {
-                    return uuid;
-                }
-
-                @Override
-                public String getXuid() {
-                    return extraData.getAsString("XUID");
-                }
-            });
+            session.setAuthData(new AuthDataImpl(displayName, uuid, xuid));
 
             if (payload.get("identityPublicKey").getNodeType() != JsonNodeType.STRING) {
                 throw new RuntimeException("Identity Public Key was not found!");
@@ -150,55 +123,12 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
             verifyJwt(clientJwt, identityPublicKey);
             skinData = clientJwt.getPayload().toJSONObject();
 
-            connect(new InetSocketAddress("127.0.0.1", 19134));
-        } catch (Exception e) {
-            session.disconnect("disconnectionScreen.internalError.cantConnect");
-            throw new RuntimeException("Unable to complete login", e);
-        }
-        return true;
-    }
 
-    public void connect(InetSocketAddress address) {
-        log.debug("Initializing proxy session");
-        if(this.plexusPlayer != null && this.plexusPlayer.getServerConnection() != null && !this.plexusPlayer.getServerConnection().isClosed()) {
-            this.plexusPlayer.closeDownstream();
-        }
-        if(this.plexusPlayer == null) {
-            log.debug("PlexusPlayer is null");
-        }
-        networkManager.getRakNetClient().connect(address).whenComplete((session, throwable) -> {
-            if(plexusPlayer.getServerConnection() != null) {
-                log.debug("Changing dimension");
-                ChangeDimensionPacket changeDimensionPacket = new ChangeDimensionPacket();
-                changeDimensionPacket.setDimension(this.plexusPlayer.getNewDimensionId(this.plexusPlayer.getDimensionId()));
-                changeDimensionPacket.setPosition(this.plexusPlayer.getPlayerPosition().toFloat());
-                changeDimensionPacket.setRespawn(false);
-                int playerChunkX = this.plexusPlayer.getPlayerPosition().getX() >> 4;
-                int playerChunkZ = this.plexusPlayer.getPlayerPosition().getZ() >> 4;
-                int radius = this.plexusPlayer.getChunkRadius();
-                for (int chunkX = (playerChunkX - radius); chunkX < (playerChunkX + radius); chunkX++) {
-                    for (int chunkZ = (playerChunkZ - radius); chunkZ < (playerChunkZ + radius); chunkZ++) {
-                        FullChunkDataPacket fullChunkDataPacket = new FullChunkDataPacket();
-                        fullChunkDataPacket.setChunkX(chunkX);
-                        fullChunkDataPacket.setChunkZ(chunkZ);
-                        fullChunkDataPacket.setData(NetworkManager.EMPTY_CHUNK);
-                        this.session.sendPacketImmediately(fullChunkDataPacket);
-                    }
-                }
-            }
-            if (throwable != null) {
-                log.error("Unable to connect to downstream server", throwable);
-                session.disconnect("Unable to connect to downstream server");
-                return;
-            }
-            DownstreamPacketHandler downstreamPacketHandler = (DownstreamPacketHandler) session.getHandler();
-            downstreamPacketHandler.setPlexusPlayer(plexusPlayer);
-            plexusPlayer.setServerConnection(session);
-            ProxyPlayerSession proxySession = new ProxyPlayerSession(this.networkManager, false);
-            session.setPlayer(proxySession);
+            // Create forged LoginPacket
+            KeyPair keyPair = EncryptionUtils.createKeyPair();
 
-            SignedJWT authData = EncryptionUtils.forgeAuthData(proxySession.getProxyKeyPair(), extraData);
-            JWSObject skinData = EncryptionUtils.forgeSkinData(proxySession.getProxyKeyPair(), this.skinData);
+            SignedJWT authData = EncryptionUtils.forgeAuthData(keyPair, extraData);
+            JWSObject skinData = EncryptionUtils.forgeSkinData(keyPair, this.skinData);
             chainData.remove(chainData.size() - 1);
             chainData.add(authData.serialize());
             JsonNode json = PlexusProxy.JSON_MAPPER.createObjectNode().set("chain", chainData);
@@ -210,17 +140,27 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
             }
 
 
-            LoginPacket login = new LoginPacket();
-            login.setChainData(chainData);
-            login.setSkinData(AsciiString.of(skinData.serialize()));
-            login.setProtocolVersion(NetworkManager.PROTOCOL_VERSION);
+            LoginPacket loginPacket = new LoginPacket();
+            loginPacket.setChainData(chainData);
+            loginPacket.setSkinData(AsciiString.of(skinData.serialize()));
+            loginPacket.setProtocolVersion(NetworkManager.PROTOCOL_VERSION);
 
-            session.sendPacketImmediately(login);
-            this.session.setWrapperTailHandler(proxySession.getUpstreamWrapperTailHandler(session));
-            session.setWrapperTailHandler(proxySession.getDownstreamWrapperTailHandler(this.session));
-            //session.setLogging(false);
+            System.out.println(networkManager.getSessionManager().getPlayerSessions());
+            if(networkManager.getSessionManager().getPlayerSessions().containsKey(uuid)) {
+                //TODO Reverse this
+                session.disconnect("disconnectionScreen.loggedinOtherLocation");
+                throw new RuntimeException("Duplicate login entry for " + uuid);
+            }
+            ProxyPlayerSession player = new ProxyPlayerSession(keyPair, networkManager, loginPacket);
 
-            log.debug("Downstream connected");
-        });
+            networkManager.getSessionManager().getPlayerSessions().put(uuid, player);
+            session.setPlayer(player);
+
+            player.connect(new InetSocketAddress("127.0.0.1", 19134));
+        } catch (Exception e) {
+            session.disconnect("disconnectionScreen.internalError.cantConnect");
+            throw new RuntimeException("Unable to complete login", e);
+        }
+        return true;
     }
 }

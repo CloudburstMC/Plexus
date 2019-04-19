@@ -2,9 +2,7 @@ package com.nukkitx.plexus.network;
 
 import com.nukkitx.network.raknet.RakNetClient;
 import com.nukkitx.network.raknet.RakNetServer;
-import com.nukkitx.plexus.network.protocol.DownstreamPacketHandler;
-import com.nukkitx.plexus.network.protocol.UpstreamPacketHandler;
-import com.nukkitx.plexus.network.session.PlexusPlayer;
+import com.nukkitx.plexus.network.upstream.InitialUpstreamHandler;
 import com.nukkitx.plexus.network.session.PlexusSessionManager;
 import com.nukkitx.plexus.network.session.ProxyPlayerSession;
 import com.nukkitx.protocol.bedrock.BedrockPacketCodec;
@@ -15,9 +13,6 @@ import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 
 import java.net.InetSocketAddress;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Log4j2
 public class NetworkManager {
@@ -33,7 +28,7 @@ public class NetworkManager {
     private final RakNetClient<BedrockSession<ProxyPlayerSession>> rakNetClient;
 
     @Getter
-    private final Map<UUID, PlexusPlayer> playerSessions = new ConcurrentHashMap<>();
+    private final PlexusSessionManager sessionManager = new PlexusSessionManager(50);
 
     public NetworkManager() {
         RakNetServer.Builder<BedrockSession<ProxyPlayerSession>> serverBuilder = RakNetServer.builder();
@@ -44,8 +39,7 @@ public class NetworkManager {
                 .sessionManager(new PlexusSessionManager(50))
                 .sessionFactory(rakNetSession -> {
                     BedrockSession<ProxyPlayerSession> session = new BedrockSession<>(rakNetSession);
-                    session.setPlayer(new ProxyPlayerSession(this, true));
-                    session.setHandler(new UpstreamPacketHandler(session, this));
+                    session.setHandler(new InitialUpstreamHandler(session, this));
                     return session;
                 })
                 .build();
@@ -53,11 +47,7 @@ public class NetworkManager {
         RakNetClient.Builder<BedrockSession<ProxyPlayerSession>> clientBuilder = RakNetClient.builder();
         this.rakNetClient = clientBuilder
                 .packet(WrappedPacket::new, 0xfe)
-                .sessionFactory(rakNetSession -> {
-                    BedrockSession<ProxyPlayerSession> session = new BedrockSession<>(rakNetSession, CODEC);
-                    session.setHandler(new DownstreamPacketHandler(session));
-                    return session;
-                })
+                .sessionFactory(rakNetSession -> new BedrockSession<>(rakNetSession, CODEC))
                 .sessionManager(new PlexusSessionManager(50))
                 .build();
 

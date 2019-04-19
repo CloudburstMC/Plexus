@@ -3,12 +3,18 @@ package com.nukkitx.plexus.network.session;
 import com.flowpowered.math.GenericMath;
 import com.nukkitx.network.SessionManager;
 import com.nukkitx.protocol.bedrock.session.BedrockSession;
+import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadPoolExecutor;
 
 @Log4j2
 public class PlexusSessionManager extends SessionManager<BedrockSession<ProxyPlayerSession>> {
+    @Getter
+    private final ConcurrentMap<UUID, ProxyPlayerSession> playerSessions = new ConcurrentHashMap<>();
 
     private final int sessionsPerThread;
 

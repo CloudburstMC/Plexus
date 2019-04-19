@@ -62,7 +62,7 @@ public class PlexusProxy implements Proxy {
         new Thread(() -> {
             Scanner scanner = new Scanner(System.in);
             String s = scanner.next();
-            networkManager.getPlayerSessions().values().iterator().next().switchServer(new InetSocketAddress("127.0.0.1", 19136));
+            networkManager.getSessionManager().getPlayerSessions().values().iterator().next().connect(new InetSocketAddress("127.0.0.1", 19136));
         }).start();
     }
 
