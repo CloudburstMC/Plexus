@@ -66,7 +66,7 @@ public class ProxyPlayerSession implements PlayerSession, ProxiedPlayer {
 
     public void closeDownstream() {
         if (this.downstream != null) {
-            this.upstream.getConnection().disconnect();
+            this.downstream.getConnection().disconnect();
         } else {
             log.debug("Downstream connection for player " + upstream.getAuthData().getIdentity() + " can't be closed, it's null!");
         }
@@ -106,6 +106,8 @@ public class ProxyPlayerSession implements PlayerSession, ProxiedPlayer {
 //                    }
 //                }
 //            }
+
+            this.downstream = downstream;
             if (throwable != null) {
                 log.error("Unable to connect to downstream server", throwable);
                 downstream.disconnect("Unable to connect to downstream server");
@@ -117,8 +119,6 @@ public class ProxyPlayerSession implements PlayerSession, ProxiedPlayer {
             this.upstream.setWrapperTailHandler(this.getUpstreamWrapperTailHandler(downstream));
             downstream.setWrapperTailHandler(this.getDownstreamWrapperTailHandler(this.upstream));
             //session.setLogging(false);
-
-            this.downstream = downstream;
 
             log.debug("Downstream connected");
         });
