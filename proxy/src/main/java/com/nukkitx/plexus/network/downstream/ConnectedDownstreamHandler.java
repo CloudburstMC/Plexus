@@ -10,7 +10,6 @@ public class ConnectedDownstreamHandler implements BedrockPacketHandler {
     private final ProxyPlayerSession player;
 
     public boolean handle(ChangeDimensionPacket packet) {
-        this.player.setDimensionId(packet.getDimension());
         return false;
     }
 }

@@ -1,31 +1,26 @@
 package com.nukkitx.plexus.network.upstream;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeType;
-import com.google.common.base.Preconditions;
-import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSObject;
-import com.nimbusds.jose.crypto.factories.DefaultJWSVerifierFactory;
 import com.nimbusds.jwt.SignedJWT;
 import com.nukkitx.plexus.PlexusProxy;
-import com.nukkitx.plexus.network.NetworkManager;
 import com.nukkitx.plexus.network.session.ProxyPlayerSession;
-import com.nukkitx.plexus.network.session.data.AuthDataImpl;
-import com.nukkitx.plexus.utils.EncryptionUtils;
+import com.nukkitx.plexus.network.session.data.AuthData;
+import com.nukkitx.plexus.network.utils.ForgeryUtils;
+import com.nukkitx.protocol.bedrock.BedrockPacketCodec;
+import com.nukkitx.protocol.bedrock.BedrockServerSession;
 import com.nukkitx.protocol.bedrock.handler.BedrockPacketHandler;
 import com.nukkitx.protocol.bedrock.packet.LoginPacket;
 import com.nukkitx.protocol.bedrock.packet.PlayStatusPacket;
-import com.nukkitx.protocol.bedrock.session.BedrockSession;
+import com.nukkitx.protocol.bedrock.util.EncryptionUtils;
 import io.netty.util.AsciiString;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
+import net.minidev.json.JSONStyle;
+import net.minidev.json.JSONValue;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.security.KeyPair;
 import java.security.interfaces.ECPublicKey;
 import java.util.UUID;
@@ -35,130 +30,88 @@ import java.util.UUID;
 public class InitialUpstreamHandler implements BedrockPacketHandler {
 
     @Getter
-    private final BedrockSession<ProxyPlayerSession> session;
-    private final NetworkManager networkManager;
-    private JSONObject skinData;
-    private JSONObject extraData;
-    private ArrayNode chainData;
+    private final BedrockServerSession upstream;
+    private final PlexusProxy proxy;
 
-    private static boolean validateChainData(JsonNode data) throws Exception {
-        ECPublicKey lastKey = null;
-        boolean validChain = false;
-        for (JsonNode node : data) {
-            JWSObject jwt = JWSObject.parse(node.asText());
-
-            if (!validChain) {
-                validChain = verifyJwt(jwt, EncryptionUtils.MOJANG_PUBLIC_KEY);
-            }
-
-            if (lastKey != null) {
-                verifyJwt(jwt, lastKey);
-            }
-
-            JsonNode payloadNode = PlexusProxy.JSON_MAPPER.readTree(jwt.getPayload().toString());
-            JsonNode ipkNode = payloadNode.get("identityPublicKey");
-            Preconditions.checkState(ipkNode != null && ipkNode.getNodeType() == JsonNodeType.STRING, "identityPublicKey node is missing in chain");
-            lastKey = EncryptionUtils.generateKey(ipkNode.asText());
-        }
-        return validChain;
-    }
-
-    private static boolean verifyJwt(JWSObject jwt, ECPublicKey key) throws JOSEException {
-        return jwt.verify(new DefaultJWSVerifierFactory().createJWSVerifier(jwt.getHeader(), key));
-    }
 
     @Override
     public boolean handle(LoginPacket packet) {
         int protocolVersion = packet.getProtocolVersion();
-        session.setProtocolVersion(protocolVersion);
 
-        if (protocolVersion != NetworkManager.PROTOCOL_VERSION) {
+        BedrockPacketCodec codec = PlexusProxy.CODEC;
+
+        if (protocolVersion != codec.getProtocolVersion()) {
             PlayStatusPacket status = new PlayStatusPacket();
-            if (protocolVersion > NetworkManager.PROTOCOL_VERSION) {
+            if (protocolVersion > codec.getProtocolVersion()) {
                 status.setStatus(PlayStatusPacket.Status.FAILED_SERVER);
             } else {
                 status.setStatus(PlayStatusPacket.Status.FAILED_CLIENT);
             }
         }
-        session.setPacketCodec(NetworkManager.CODEC);
+        upstream.setPacketCodec(codec);
 
-        JsonNode certData;
-        try {
-            certData = PlexusProxy.JSON_MAPPER.readTree(packet.getChainData().toByteArray());
-        } catch (IOException e) {
-            throw new RuntimeException("Certificate JSON can not be read.");
-        }
-
-        JsonNode certChainData = certData.get("chain");
-        if (certChainData.getNodeType() != JsonNodeType.ARRAY) {
+        JSONObject certData = (JSONObject) JSONValue.parse(packet.getChainData().toByteArray());
+        Object chainObject = certData.get("chain");
+        if (!(chainObject instanceof JSONArray)) {
             throw new RuntimeException("Certificate data is not valid");
         }
-        chainData = (ArrayNode) certChainData;
+        JSONArray certChain = (JSONArray) chainObject;
 
         boolean validChain;
         try {
-            validChain = validateChainData(certChainData);
+            validChain = EncryptionUtils.verifyChain(certChain);
 
             log.debug("Is player data valid? {}", validChain);
-            JWSObject jwt = JWSObject.parse(certChainData.get(certChainData.size() - 1).asText());
-            JsonNode payload = PlexusProxy.JSON_MAPPER.readTree(jwt.getPayload().toBytes());
+            JWSObject jwt = JWSObject.parse((String) certChain.get(certChain.size() - 1));
+            JSONObject payload = jwt.getPayload().toJSONObject();
 
-            if (payload.get("extraData").getNodeType() != JsonNodeType.OBJECT) {
-                throw new RuntimeException("AuthData was not found!");
+            Object extraDataObject = payload.get("extraData");
+            if (!(extraDataObject instanceof JSONObject)) {
+                throw new IllegalStateException("Invalid 'extraData'");
             }
 
-            extraData = (JSONObject) jwt.getPayload().toJSONObject().get("extraData");
-            UUID uuid = UUID.fromString(extraData.getAsString("identity"));
-            String xuid = extraData.getAsString("XUID");
-            String displayName = extraData.getAsString("displayName");
+            JSONObject extraData = (JSONObject) extraDataObject;
 
-            session.setAuthData(new AuthDataImpl(displayName, uuid, xuid));
+            AuthData authData = new AuthData(
+                    extraData.getAsString("displayName"),
+                    UUID.fromString(extraData.getAsString("identity")),
+                    extraData.getAsString("XUID")
+            );
 
-            if (payload.get("identityPublicKey").getNodeType() != JsonNodeType.STRING) {
+            String identityPublicKeyString = payload.getAsString("identityPublicKey");
+            if (identityPublicKeyString == null) {
                 throw new RuntimeException("Identity Public Key was not found!");
             }
-            ECPublicKey identityPublicKey = EncryptionUtils.generateKey(payload.get("identityPublicKey").textValue());
+            ECPublicKey identityPublicKey = EncryptionUtils.generateKey(identityPublicKeyString);
 
             JWSObject clientJwt = JWSObject.parse(packet.getSkinData().toString());
-            verifyJwt(clientJwt, identityPublicKey);
-            skinData = clientJwt.getPayload().toJSONObject();
+            EncryptionUtils.verifyJwt(clientJwt, identityPublicKey);
+            JSONObject skinData = clientJwt.getPayload().toJSONObject();
 
 
             // Create forged LoginPacket
             KeyPair keyPair = EncryptionUtils.createKeyPair();
 
-            SignedJWT authData = EncryptionUtils.forgeAuthData(keyPair, extraData);
-            JWSObject skinData = EncryptionUtils.forgeSkinData(keyPair, this.skinData);
-            chainData.remove(chainData.size() - 1);
-            chainData.add(authData.serialize());
-            JsonNode json = PlexusProxy.JSON_MAPPER.createObjectNode().set("chain", chainData);
-            AsciiString chainData;
-            try {
-                chainData = new AsciiString(PlexusProxy.JSON_MAPPER.writeValueAsBytes(json));
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-
+            SignedJWT signedExtraData = ForgeryUtils.forgeAuthData(keyPair, extraData);
+            JWSObject signedSkinData = ForgeryUtils.forgeSkinData(keyPair, skinData);
+            certChain.remove(certChain.size() - 1);
+            certChain.add(signedExtraData.serialize());
+            JSONObject chainJson = new JSONObject();
+            chainJson.put("chain", certChain);
+            AsciiString chainData = AsciiString.of(chainJson.toString(JSONStyle.MAX_COMPRESS));
 
             LoginPacket loginPacket = new LoginPacket();
             loginPacket.setChainData(chainData);
-            loginPacket.setSkinData(AsciiString.of(skinData.serialize()));
-            loginPacket.setProtocolVersion(NetworkManager.PROTOCOL_VERSION);
+            loginPacket.setSkinData(AsciiString.of(signedSkinData.serialize()));
+            loginPacket.setProtocolVersion(protocolVersion);
 
-            System.out.println(networkManager.getSessionManager().getPlayerSessions());
-            if(networkManager.getSessionManager().getPlayerSessions().containsKey(uuid)) {
-                //TODO Reverse this
-                session.disconnect("disconnectionScreen.loggedinOtherLocation");
-                throw new RuntimeException("Duplicate login entry for " + uuid);
-            }
-            ProxyPlayerSession player = new ProxyPlayerSession(keyPair, networkManager, loginPacket);
+            ProxyPlayerSession player = new ProxyPlayerSession(this.proxy, this.upstream, keyPair, loginPacket, authData);
 
-            networkManager.getSessionManager().getPlayerSessions().put(uuid, player);
-            session.setPlayer(player);
+            this.proxy.getSessionManager().add(player);
 
-            player.connect(new InetSocketAddress("127.0.0.1", 19134));
+            player.connect(this.proxy.getDefaultServer());
         } catch (Exception e) {
-            session.disconnect("disconnectionScreen.internalError.cantConnect");
+            upstream.disconnect("disconnectionScreen.internalError.cantConnect");
             throw new RuntimeException("Unable to complete login", e);
         }
         return true;

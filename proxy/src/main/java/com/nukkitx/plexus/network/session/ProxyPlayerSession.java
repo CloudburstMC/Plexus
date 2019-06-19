@@ -1,80 +1,66 @@
 package com.nukkitx.plexus.network.session;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.flowpowered.math.vector.Vector3i;
-import com.nimbusds.jose.JWSObject;
-import com.nimbusds.jwt.SignedJWT;
-import com.nukkitx.network.util.DisconnectReason;
-import com.nukkitx.network.util.Preconditions;
+import com.nukkitx.network.raknet.RakNetClientSession;
 import com.nukkitx.plexus.PlexusProxy;
 import com.nukkitx.plexus.api.ProxiedPlayer;
-import com.nukkitx.plexus.network.NetworkManager;
 import com.nukkitx.plexus.network.downstream.InitialDownstreamHandler;
 import com.nukkitx.plexus.network.downstream.SwitchDownstreamHandler;
-import com.nukkitx.plexus.network.upstream.InitialUpstreamHandler;
-import com.nukkitx.plexus.utils.EncryptionUtils;
-import com.nukkitx.protocol.PlayerSession;
+import com.nukkitx.plexus.network.session.data.AuthData;
+import com.nukkitx.protocol.bedrock.*;
+import com.nukkitx.protocol.bedrock.handler.BatchHandler;
 import com.nukkitx.protocol.bedrock.handler.BedrockPacketHandler;
-import com.nukkitx.protocol.bedrock.handler.WrapperTailHandler;
-import com.nukkitx.protocol.bedrock.packet.ChangeDimensionPacket;
-import com.nukkitx.protocol.bedrock.packet.FullChunkDataPacket;
 import com.nukkitx.protocol.bedrock.packet.LoginPacket;
-import com.nukkitx.protocol.bedrock.session.BedrockSession;
-import com.nukkitx.protocol.bedrock.wrapper.WrappedPacket;
-import io.netty.util.AsciiString;
+import com.nukkitx.protocol.bedrock.packet.NetworkStackLatencyPacket;
+import io.netty.buffer.ByteBuf;
 import lombok.*;
 import lombok.extern.log4j.Log4j2;
 
-import javax.annotation.Nonnull;
 import java.net.InetSocketAddress;
 import java.security.KeyPair;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.UUID;
 
 @Data
 @Log4j2
-public class ProxyPlayerSession implements PlayerSession, ProxiedPlayer {
+public class ProxyPlayerSession implements ProxiedPlayer {
 
     @Setter(AccessLevel.NONE)
     private boolean closed;
+    private final PlexusProxy proxy;
+    private final BedrockServerSession upstream;
     private final KeyPair proxyKeyPair;
-    private final NetworkManager networkManager;
     private final LoginPacket loginPacket;
-    private BedrockSession<ProxyPlayerSession> upstream;
-    private BedrockSession<ProxyPlayerSession> downstream;
-    private int dimensionId = -1;
-    private int chunkRadius;
-    private Vector3i playerPosition;
+    private final AuthData authData;
+    private BedrockClient downstreamClient;
+    private BedrockClientSession downstream;
+    private BedrockClientSession connectingDownstream;
 
-    @Override
-    public boolean isClosed() {
-        return this.closed;
+    public UUID getUniqueId() {
+        return this.authData.getIdentity();
     }
 
-    @Override
-    public void close() {
-        Preconditions.checkArgument(!this.closed, "Trying to close an already closed session");
-        this.closed = true;
+    public String getXuid() {
+        return this.authData.getXuid();
     }
 
-    @Override
-    public void onDisconnect(@Nonnull DisconnectReason disconnectReason) {
-        if(disconnectReason.equals(DisconnectReason.CLIENT_DISCONNECT)) {
-            this.closeDownstream();
-        }
-        System.out.println(disconnectReason.name());
+    public String getName() {
+        return this.authData.getDisplayName();
     }
 
-    public void closeDownstream() {
-        if (this.downstream != null) {
-            this.downstream.getConnection().disconnect();
+    private void closeDownstream() {
+        if (this.downstream != null && !this.downstream.isClosed()) {
+            this.downstream.disconnect();
+            this.downstreamClient.close();
         } else {
-            log.debug("Downstream connection for player " + upstream.getAuthData().getIdentity() + " can't be closed, it's null!");
+            log.debug("Downstream connection for player " + this.getName() + " can't be closed, it's null!");
         }
     }
 
     public void connect(InetSocketAddress address) {
         log.debug("Connecting to downstream server {}", address);
-        BedrockPacketHandler handler;
+        final BedrockPacketHandler handler;
         if (this.downstream == null) {
             // Initial connection
             handler = new InitialDownstreamHandler(this);
@@ -82,73 +68,62 @@ public class ProxyPlayerSession implements PlayerSession, ProxiedPlayer {
             // Switching server
             handler = new SwitchDownstreamHandler(this);
         }
-
-        if(this.downstream != null && !this.downstream.isClosed()) {
-            this.closeDownstream();
-        }
-        networkManager.getRakNetClient().connect(address).whenComplete((downstream, throwable) -> {
-//            if(session.getPlayer().getDownstream() != null) {
-//                log.debug("Changing dimension");
-//                ChangeDimensionPacket changeDimensionPacket = new ChangeDimensionPacket();
-//                changeDimensionPacket.setDimension(this.plexusPlayer.getNewDimensionId(this.plexusPlayer.getDimensionId()));
-//                changeDimensionPacket.setPosition(this.plexusPlayer.getPlayerPosition().toFloat());
-//                changeDimensionPacket.setRespawn(false);
-//                int playerChunkX = this.playerPosition.getX() >> 4;
-//                int playerChunkZ = this.playerPosition.getZ() >> 4;
-//                int radius = this.chunkRadius;
-//                for (int chunkX = (playerChunkX - radius); chunkX < (playerChunkX + radius); chunkX++) {
-//                    for (int chunkZ = (playerChunkZ - radius); chunkZ < (playerChunkZ + radius); chunkZ++) {
-//                        FullChunkDataPacket fullChunkDataPacket = new FullChunkDataPacket();
-//                        fullChunkDataPacket.setChunkX(chunkX);
-//                        fullChunkDataPacket.setChunkZ(chunkZ);
-//                        fullChunkDataPacket.setData(NetworkManager.EMPTY_CHUNK);
-//                        this.upstream.sendPacketImmediately(fullChunkDataPacket);
-//                    }
-//                }
-//            }
-
-            this.downstream = downstream;
+        this.downstreamClient = this.proxy.newClient();
+        this.downstreamClient.connect(address).whenComplete((downstream, throwable) -> {
             if (throwable != null) {
                 log.error("Unable to connect to downstream server", throwable);
-                downstream.disconnect("Unable to connect to downstream server");
                 return;
             }
-            downstream.setHandler(handler);
-
-            downstream.sendPacketImmediately(loginPacket);
-            this.upstream.setWrapperTailHandler(this.getUpstreamWrapperTailHandler(downstream));
-            downstream.setWrapperTailHandler(this.getDownstreamWrapperTailHandler(this.upstream));
-            //session.setLogging(false);
+            if (this.downstream == null) {
+                this.downstream = downstream;
+                this.upstream.setBatchedHandler(this.getUpstreamBatchHandler(downstream));
+            } else {
+                this.connectingDownstream = downstream;
+            }
+            downstream.setPacketHandler(handler);
+            downstream.sendPacketImmediately(this.loginPacket);
+            downstream.setBatchedHandler(this.getDownstreamBatchHandler(this.upstream));
+            downstream.setLogging(true);
 
             log.debug("Downstream connected");
         });
     }
 
-    @Override
-    public void onDisconnect(@Nonnull String s) {
-        this.onDisconnect(DisconnectReason.CLIENT_DISCONNECT);
-        //TODO: Else transfer player to the fallback server
+    private BatchHandler getUpstreamBatchHandler(BedrockClientSession session) {
+        return new ProxyBatchHandler(session);
     }
 
-    public WrapperTailHandler<ProxyPlayerSession> getUpstreamWrapperTailHandler(BedrockSession<ProxyPlayerSession> downstream) {
-        return new ProxyWrapperTailHandler(downstream);
-    }
-
-    public WrapperTailHandler<ProxyPlayerSession> getDownstreamWrapperTailHandler(BedrockSession<ProxyPlayerSession> upstream) {
-        return new ProxyWrapperTailHandler(upstream);
+    private BatchHandler getDownstreamBatchHandler(BedrockServerSession session) {
+        return new ProxyBatchHandler(session);
     }
 
     @RequiredArgsConstructor
-    private class ProxyWrapperTailHandler implements WrapperTailHandler<ProxyPlayerSession> {
-        private final BedrockSession<ProxyPlayerSession> session;
+    private class ProxyBatchHandler implements BatchHandler {
+        private final BedrockSession session;
 
         @Override
-        public void handle(WrappedPacket<ProxyPlayerSession> packet, boolean packetsHandled) {
-            if (!packetsHandled) {
-                packet.getBatched().retain();
-                packet.getBatched().readerIndex(0);
-                packet.getBatched().writerIndex(packet.getBatched().readableBytes());
-                session.sendWrapped(packet);
+        public void handle(BedrockSession session, ByteBuf compressed, Collection<BedrockPacket> packets) {
+            boolean wrapperHandled = false;
+            List<BedrockPacket> unhandled = new ArrayList<>();
+            for (BedrockPacket packet : packets) {
+                if (session.isLogging() && log.isTraceEnabled() && !(packet instanceof NetworkStackLatencyPacket)) {
+                    log.trace("Inbound {}: {}", session.getAddress(), packet);
+                }
+
+                BedrockPacketHandler handler = session.getPacketHandler();
+
+                if (handler != null && packet.handle(handler)) {
+                    wrapperHandled = true;
+                } else {
+                    unhandled.add(packet);
+                }
+            }
+
+            if (!wrapperHandled) {
+                compressed.resetReaderIndex();
+                this.session.sendWrapped(compressed, true);
+            } else if (!unhandled.isEmpty()) {
+                this.session.sendWrapped(unhandled, true);
             }
         }
     }

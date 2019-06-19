@@ -2,13 +2,12 @@ package com.nukkitx.plexus.network.downstream;
 
 import com.nimbusds.jwt.SignedJWT;
 import com.nukkitx.plexus.network.session.ProxyPlayerSession;
-import com.nukkitx.plexus.utils.EncryptionUtils;
 import com.nukkitx.protocol.bedrock.handler.BedrockPacketHandler;
 import com.nukkitx.protocol.bedrock.packet.*;
-import com.nukkitx.protocol.bedrock.session.BedrockSession;
+import com.nukkitx.protocol.bedrock.util.EncryptionUtils;
 import lombok.RequiredArgsConstructor;
 
-import javax.crypto.spec.SecretKeySpec;
+import javax.crypto.SecretKey;
 import java.net.URI;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -27,9 +26,9 @@ public class InitialDownstreamHandler implements BedrockPacketHandler {
             SignedJWT saltJwt = SignedJWT.parse(packet.getJwt());
             URI x5u = saltJwt.getHeader().getX509CertURL();
             ECPublicKey serverKey = EncryptionUtils.generateKey(x5u.toASCIIString());
-            byte[] encryptionKey = EncryptionUtils.getServerKey(player.getProxyKeyPair(), serverKey,
+            SecretKey key = EncryptionUtils.getSecretKey(player.getProxyKeyPair().getPrivate(), serverKey,
                     Base64.getDecoder().decode(saltJwt.getJWTClaimsSet().getStringClaim("salt")));
-            player.getDownstream().enableEncryption(new SecretKeySpec(encryptionKey, "AES"));
+            player.getDownstream().enableEncryption(key);
         } catch (ParseException | NoSuchAlgorithmException | InvalidKeySpecException | InvalidKeyException e) {
             throw new RuntimeException(e);
         }
@@ -40,7 +39,7 @@ public class InitialDownstreamHandler implements BedrockPacketHandler {
     }
 
     public boolean handle(StartGamePacket packet) {
-        player.setDimensionId(packet.getDimensionId());
+        packet.getDimensionId();
 
         return false;
     }
