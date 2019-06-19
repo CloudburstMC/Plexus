@@ -76,6 +76,7 @@ public class ProxyPlayerSession implements ProxiedPlayer {
             }
             if (this.downstream == null) {
                 this.downstream = downstream;
+                this.downstream.setPacketCodec(PlexusProxy.CODEC);
                 this.upstream.setBatchedHandler(this.getUpstreamBatchHandler(downstream));
             } else {
                 this.connectingDownstream = downstream;

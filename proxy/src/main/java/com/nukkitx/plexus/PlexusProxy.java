@@ -7,6 +7,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.nukkitx.event.SimpleEventManager;
 import com.nukkitx.plexus.api.Proxy;
+import com.nukkitx.plexus.network.ProxyBedrockEventHandler;
 import com.nukkitx.plexus.network.SessionManager;
 import com.nukkitx.plugin.SimplePluginManager;
 import com.nukkitx.protocol.bedrock.BedrockClient;
@@ -72,6 +73,7 @@ public class PlexusProxy implements Proxy {
         /*          Start Server        */
         InetSocketAddress bindAddress = this.configuration.getBindAddress().getSocketAddress();
         bedrockServer = new BedrockServer(bindAddress, Runtime.getRuntime().availableProcessors());
+        bedrockServer.setHandler(new ProxyBedrockEventHandler(this));
         bedrockServer.bind().join();
 
         this.running.compareAndSet(false, true);
