@@ -74,6 +74,8 @@ public class PlexusProxy implements Proxy {
         bedrockServer = new BedrockServer(bindAddress, Runtime.getRuntime().availableProcessors());
         bedrockServer.bind().join();
 
+        this.running.compareAndSet(false, true);
+
         this.loop();
     }
 
