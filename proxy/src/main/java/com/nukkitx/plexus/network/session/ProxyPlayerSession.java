@@ -6,6 +6,7 @@ import com.nukkitx.plexus.api.ProxiedPlayer;
 import com.nukkitx.plexus.network.downstream.InitialDownstreamHandler;
 import com.nukkitx.plexus.network.downstream.SwitchDownstreamHandler;
 import com.nukkitx.plexus.network.session.data.AuthData;
+import com.nukkitx.plexus.network.utils.ProxyBatchHandler;
 import com.nukkitx.protocol.bedrock.*;
 import com.nukkitx.protocol.bedrock.handler.BatchHandler;
 import com.nukkitx.protocol.bedrock.handler.BedrockPacketHandler;
@@ -78,57 +79,16 @@ public class ProxyPlayerSession implements ProxiedPlayer {
             downstream.setPacketCodec(PlexusProxy.CODEC);
             if (this.downstream == null) {
                 this.downstream = downstream;
-                this.upstream.setBatchedHandler(this.getUpstreamBatchHandler(downstream));
+                this.upstream.setBatchedHandler(new ProxyBatchHandler(downstream, "Server-bound"));
             } else {
                 this.connectingDownstream = downstream;
             }
             downstream.setPacketHandler(handler);
-            downstream.setBatchedHandler(this.getDownstreamBatchHandler(this.upstream));
+            downstream.setBatchedHandler(new ProxyBatchHandler(this.upstream, "Client-bound"));
             downstream.sendPacketImmediately(this.loginPacket);
             downstream.setLogging(true);
 
             log.debug("Downstream connected");
         });
-    }
-
-    private BatchHandler getUpstreamBatchHandler(BedrockClientSession session) {
-        return new ProxyBatchHandler(session, "Server-bound");
-    }
-
-    private BatchHandler getDownstreamBatchHandler(BedrockServerSession session) {
-        return new ProxyBatchHandler(session, "Client-bound");
-    }
-
-    @RequiredArgsConstructor
-    private static class ProxyBatchHandler implements BatchHandler {
-        private final BedrockSession session;
-        private final String message;
-
-        @Override
-        public void handle(BedrockSession session, ByteBuf compressed, Collection<BedrockPacket> packets) {
-            boolean wrapperHandled = false;
-            List<BedrockPacket> unhandled = new ArrayList<>();
-            for (BedrockPacket packet : packets) {
-                if (session.isLogging() && log.isTraceEnabled() && !(packet instanceof NetworkStackLatencyPacket)) {
-                    log.trace("{} {}: {}", message, session.getAddress(), packet);
-                }
-
-                BedrockPacketHandler handler = session.getPacketHandler();
-
-                if (handler != null && packet.handle(handler)) {
-                    wrapperHandled = true;
-                } else {
-                    unhandled.add(packet);
-                }
-            }
-
-            if (!wrapperHandled) {
-                log.debug("Sending {} wrapped buffer to {}", message, this.session.getAddress());
-                compressed.readerIndex(1); // FE - packet id
-                this.session.sendWrapped(compressed.retainedDuplicate(), this.session.isEncrypted());
-            } else if (!unhandled.isEmpty()) {
-                this.session.sendWrapped(unhandled, true);
-            }
-        }
     }
 }
