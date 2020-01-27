@@ -1,9 +1,9 @@
 package com.nukkitx.plexus.network;
 
-import com.flowpowered.math.GenericMath;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.nukkitx.math.GenericMath;
 import com.nukkitx.plexus.network.session.ProxyPlayerSession;
 import lombok.Getter;
 

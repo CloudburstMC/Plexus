@@ -12,6 +12,7 @@ import com.nukkitx.protocol.bedrock.handler.BedrockPacketHandler;
 import com.nukkitx.protocol.bedrock.packet.LoginPacket;
 import com.nukkitx.protocol.bedrock.packet.NetworkStackLatencyPacket;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import lombok.*;
 import lombok.extern.log4j.Log4j2;
 
@@ -74,6 +75,7 @@ public class ProxyPlayerSession implements ProxiedPlayer {
                 log.error("Unable to connect to downstream server", throwable);
                 return;
             }
+            downstream.setPacketCodec(PlexusProxy.CODEC);
             if (this.downstream == null) {
                 this.downstream = downstream;
                 this.upstream.setBatchedHandler(this.getUpstreamBatchHandler(downstream));
@@ -81,8 +83,8 @@ public class ProxyPlayerSession implements ProxiedPlayer {
                 this.connectingDownstream = downstream;
             }
             downstream.setPacketHandler(handler);
-            downstream.sendPacketImmediately(this.loginPacket);
             downstream.setBatchedHandler(this.getDownstreamBatchHandler(this.upstream));
+            downstream.sendPacketImmediately(this.loginPacket);
             downstream.setLogging(true);
 
             log.debug("Downstream connected");
@@ -90,16 +92,17 @@ public class ProxyPlayerSession implements ProxiedPlayer {
     }
 
     private BatchHandler getUpstreamBatchHandler(BedrockClientSession session) {
-        return new ProxyBatchHandler(session);
+        return new ProxyBatchHandler(session, "Server-bound");
     }
 
     private BatchHandler getDownstreamBatchHandler(BedrockServerSession session) {
-        return new ProxyBatchHandler(session);
+        return new ProxyBatchHandler(session, "Client-bound");
     }
 
     @RequiredArgsConstructor
-    private class ProxyBatchHandler implements BatchHandler {
+    private static class ProxyBatchHandler implements BatchHandler {
         private final BedrockSession session;
+        private final String message;
 
         @Override
         public void handle(BedrockSession session, ByteBuf compressed, Collection<BedrockPacket> packets) {
@@ -107,7 +110,7 @@ public class ProxyPlayerSession implements ProxiedPlayer {
             List<BedrockPacket> unhandled = new ArrayList<>();
             for (BedrockPacket packet : packets) {
                 if (session.isLogging() && log.isTraceEnabled() && !(packet instanceof NetworkStackLatencyPacket)) {
-                    log.trace("Inbound {}: {}", session.getAddress(), packet);
+                    log.trace("{} {}: {}", message, session.getAddress(), packet);
                 }
 
                 BedrockPacketHandler handler = session.getPacketHandler();
@@ -120,8 +123,9 @@ public class ProxyPlayerSession implements ProxiedPlayer {
             }
 
             if (!wrapperHandled) {
-                compressed.resetReaderIndex();
-                this.session.sendWrapped(compressed, true);
+                log.debug("Sending {} wrapped buffer to {}", message, this.session.getAddress());
+                compressed.readerIndex(1); // FE - packet id
+                this.session.sendWrapped(compressed.retainedDuplicate(), this.session.isEncrypted());
             } else if (!unhandled.isEmpty()) {
                 this.session.sendWrapped(unhandled, true);
             }

@@ -49,6 +49,7 @@ public class InitialUpstreamHandler implements BedrockPacketHandler {
             }
         }
         upstream.setPacketCodec(codec);
+        upstream.setLogging(true);
 
         JSONObject certData = (JSONObject) JSONValue.parse(packet.getChainData().toByteArray());
         Object chainObject = certData.get("chain");
@@ -98,7 +99,7 @@ public class InitialUpstreamHandler implements BedrockPacketHandler {
             certChain.add(signedExtraData.serialize());
             JSONObject chainJson = new JSONObject();
             chainJson.put("chain", certChain);
-            AsciiString chainData = AsciiString.of(chainJson.toString(JSONStyle.MAX_COMPRESS));
+            AsciiString chainData = AsciiString.of(chainJson.toString(JSONStyle.LT_COMPRESS));
 
             LoginPacket loginPacket = new LoginPacket();
             loginPacket.setChainData(chainData);
