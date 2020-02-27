@@ -43,7 +43,7 @@ public class ProxyBatchHandler implements BatchHandler {
 
         if (!wrapperHandled) {
             compressed.readerIndex(1); // FE - packet id
-            this.session.sendWrapped(compressed.retainedDuplicate(), this.session.isEncrypted());
+            this.session.sendWrapped(compressed, this.session.isEncrypted());
         } else if (!unhandled.isEmpty()) {
             this.session.sendWrapped(unhandled, true);
         }
