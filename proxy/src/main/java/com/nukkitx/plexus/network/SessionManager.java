@@ -26,7 +26,7 @@ public class SessionManager {
 
     public void add(ProxyPlayerSession session) {
         ProxyPlayerSession previousSession = this.playerSessions.put(session.getUniqueId(), session);
-        if (previousSession != null) {
+        if (previousSession != null && !previousSession.getUpstream().isClosed()) {
             previousSession.getUpstream().disconnect("disconnectionScreen.loggedinOtherLocation");
         } else {
             this.adjustPoolSize();

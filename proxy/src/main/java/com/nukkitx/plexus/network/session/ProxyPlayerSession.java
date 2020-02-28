@@ -1,27 +1,23 @@
 package com.nukkitx.plexus.network.session;
 
-import com.nukkitx.network.raknet.RakNetClientSession;
 import com.nukkitx.plexus.PlexusProxy;
 import com.nukkitx.plexus.api.ProxiedPlayer;
 import com.nukkitx.plexus.network.downstream.InitialDownstreamHandler;
 import com.nukkitx.plexus.network.downstream.SwitchDownstreamHandler;
 import com.nukkitx.plexus.network.session.data.AuthData;
 import com.nukkitx.plexus.network.utils.ProxyBatchHandler;
-import com.nukkitx.protocol.bedrock.*;
-import com.nukkitx.protocol.bedrock.handler.BatchHandler;
+import com.nukkitx.protocol.bedrock.BedrockClient;
+import com.nukkitx.protocol.bedrock.BedrockClientSession;
+import com.nukkitx.protocol.bedrock.BedrockServerSession;
 import com.nukkitx.protocol.bedrock.handler.BedrockPacketHandler;
 import com.nukkitx.protocol.bedrock.packet.LoginPacket;
-import com.nukkitx.protocol.bedrock.packet.NetworkStackLatencyPacket;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Data;
+import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 
 import java.net.InetSocketAddress;
 import java.security.KeyPair;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -87,6 +83,7 @@ public class ProxyPlayerSession implements ProxiedPlayer {
             downstream.setBatchedHandler(new ProxyBatchHandler(this.upstream, "Client-bound"));
             downstream.sendPacketImmediately(this.loginPacket);
             downstream.setLogging(true);
+            this.upstream.addDisconnectHandler(reason -> downstream.disconnect());
 
             log.debug("Downstream connected");
         });
