@@ -1,9 +1,5 @@
 max-players: 20
-bind-address:
-  address: "0.0.0.0"
-  port: 19132
+bind-address: "0.0.0.0:19132"
 default-server: lobby
 servers:
-  lobby:
-    address: "127.0.0.1"
-    port: 19123
+  lobby: "127.0.0.1:19123"
