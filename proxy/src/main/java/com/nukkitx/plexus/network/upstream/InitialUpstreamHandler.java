@@ -69,8 +69,12 @@ public class InitialUpstreamHandler implements BedrockPacketHandler {
         boolean validChain;
         try {
             validChain = verifyChain(certChainData);
-
             log.debug("Is player data valid? {}", validChain);
+            if (!validChain && this.proxy.getConfiguration().isXboxAuth()) {
+                this.upstream.disconnect("disconnectionScreen.notAuthenticated");
+                return true;
+            }
+
             JWSObject jwt = JWSObject.parse(certChainData.get(certChainData.size() - 1).asText());
             JsonNode payload = PlexusProxy.JSON_MAPPER.readTree(jwt.getPayload().toBytes());
             if (payload.get("extraData").getNodeType() != JsonNodeType.OBJECT) {

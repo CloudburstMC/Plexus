@@ -1,5 +1,6 @@
 max-players: 20
 bind-address: "0.0.0.0:19132"
+xbox-auth: true
 default-server: lobby
 servers:
   lobby: "127.0.0.1:19123"

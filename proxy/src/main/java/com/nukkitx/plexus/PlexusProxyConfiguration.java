@@ -32,6 +32,9 @@ public final class PlexusProxyConfiguration implements ProxyConfiguration {
     @JsonProperty("bind-address")
     private InetSocketAddress bindAddress;
 
+    @JsonProperty("xbox-auth")
+    private boolean xboxAuth;
+
     @Setter(AccessLevel.NONE)
     @JsonProperty("default-server")
     private String defaultServer;
