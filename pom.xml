@@ -10,7 +10,7 @@
     <version>1.0.0-SNAPSHOT</version>
     <name>Plexus Parent</name>
     <description>Next generation proxy for Minecraft: Bedrock Edition</description>
-    <url>https://github.com/NukkitX/Plexus</url>
+    <url>https://github.com/CloudburstMC/Plexus</url>
     <inceptionYear>2019</inceptionYear>
 
     <modules>
@@ -28,24 +28,24 @@
     </licenses>
 
     <organization>
-        <name>NukkitX</name>
-        <url>https://github.com/NukkitX</url>
+        <name>CloudburstMC</name>
+        <url>https://github.com/CloudburstMC</url>
     </organization>
 
     <issueManagement>
         <system>GitHub</system>
-        <url>https://github.com/NukkitX/Plexus/issues</url>
+        <url>https://github.com/CloudburstMC/Plexus/issues</url>
     </issueManagement>
 
     <ciManagement>
         <system>Jenkins</system>
-        <url>https://ci.nukkitx.com/job/NukkitX/job/Plexus</url>
+        <url>https://ci.nukkitx.com/job/CloudburstMC/job/Plexus</url>
     </ciManagement>
 
     <scm>
-        <connection>scm:git:https://github.com/NukkitX/Plexus.git</connection>
-        <developerConnection>scm:git:git@github.com:NukkitX/Plexus.git</developerConnection>
-        <url>https://github.com/NukkitX/Plexus</url>
+        <connection>scm:git:https://github.com/CloudburstMC/Plexus.git</connection>
+        <developerConnection>scm:git:git@github.com:CloudburstMC/Plexus.git</developerConnection>
+        <url>https://github.com/CloudburstMC/Plexus</url>
     </scm>
 
     <distributionManagement>

@@ -75,12 +75,12 @@ public class ProxyPlayerSession implements ProxiedPlayer {
             downstream.setPacketCodec(PlexusProxy.CODEC);
             if (this.downstream == null) {
                 this.downstream = downstream;
-                this.upstream.setBatchedHandler(new ProxyBatchHandler(downstream, "Server-bound"));
+                this.upstream.setBatchHandler(new ProxyBatchHandler(downstream, "Server-bound"));
             } else {
                 this.connectingDownstream = downstream;
             }
             downstream.setPacketHandler(handler);
-            downstream.setBatchedHandler(new ProxyBatchHandler(this.upstream, "Client-bound"));
+            downstream.setBatchHandler(new ProxyBatchHandler(this.upstream, "Client-bound"));
             downstream.sendPacketImmediately(this.loginPacket);
             downstream.setLogging(true);
             this.upstream.addDisconnectHandler(reason -> downstream.disconnect());

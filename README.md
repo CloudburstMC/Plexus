@@ -7,5 +7,5 @@ __Work in progress proxy for Minecraft: Bedrock Edition__
 
 __[Jenkins](https://ci.nukkitx.com/job/NukkitX/job/Plexus/job/master/)__
 
-__[Protocol library](https://github.com/NukkitX/Protocol) used in this project__
+__[Protocol library](https://github.com/CloudburstMC/Protocol) used in this project__
 

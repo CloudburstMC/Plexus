@@ -23,7 +23,7 @@ public final class PlexusProxyConfiguration implements ProxyConfiguration {
     private String motd = "Plexus Proxy";
 
     @JsonProperty("sub-motd")
-    private String subMotd = "https://github.com/NukkitX/Plexus";
+    private String subMotd = "https://github.com/CloudburstMC/Plexus";
 
     @JsonProperty("max-players")
     private int maxPlayerCount = 20;

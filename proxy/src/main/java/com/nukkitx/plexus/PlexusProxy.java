@@ -14,7 +14,7 @@ import com.nukkitx.plugin.SimplePluginManager;
 import com.nukkitx.protocol.bedrock.BedrockClient;
 import com.nukkitx.protocol.bedrock.BedrockPacketCodec;
 import com.nukkitx.protocol.bedrock.BedrockServer;
-import com.nukkitx.protocol.bedrock.v389.Bedrock_v389;
+import com.nukkitx.protocol.bedrock.v407.Bedrock_v407;
 import com.nukkitx.service.SimpleServiceManager;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class PlexusProxy extends Proxy {
     public static final ObjectMapper JSON_MAPPER = new ObjectMapper().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
     public static final YAMLMapper YAML_MAPPER = (YAMLMapper) new YAMLMapper().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-    public static final BedrockPacketCodec CODEC = Bedrock_v389.V389_CODEC;
+    public static final BedrockPacketCodec CODEC = Bedrock_v407.V407_CODEC;
 
     @Getter(AccessLevel.NONE)
     private final ScheduledExecutorService timerService = Executors.unconfigurableScheduledExecutorService(

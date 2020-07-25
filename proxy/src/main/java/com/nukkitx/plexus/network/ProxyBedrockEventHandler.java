@@ -19,11 +19,11 @@ public class ProxyBedrockEventHandler implements BedrockServerEventHandler {
     static {
         ADVERTISEMENT.setEdition("MCPE");
         ADVERTISEMENT.setGameType("Survival");
-        ADVERTISEMENT.setProtocolVersion(354);
+        ADVERTISEMENT.setProtocolVersion(PlexusProxy.CODEC.getProtocolVersion());
         ADVERTISEMENT.setMotd("A Plexus Proxy");
         ADVERTISEMENT.setPlayerCount(0);
         ADVERTISEMENT.setMaximumPlayerCount(20);
-        ADVERTISEMENT.setSubMotd("https://github.com/NukkitX/Plexus");
+        ADVERTISEMENT.setSubMotd("https://github.com/CloudburstMC/Plexus");
     }
 
     @Override
