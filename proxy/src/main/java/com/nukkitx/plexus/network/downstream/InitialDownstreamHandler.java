@@ -2,7 +2,6 @@ package com.nukkitx.plexus.network.downstream;
 
 import com.nimbusds.jwt.SignedJWT;
 import com.nukkitx.plexus.network.session.ProxyPlayerSession;
-import com.nukkitx.plexus.network.upstream.ConnectedUpstreamHandler;
 import com.nukkitx.protocol.bedrock.handler.BedrockPacketHandler;
 import com.nukkitx.protocol.bedrock.packet.*;
 import com.nukkitx.protocol.bedrock.util.EncryptionUtils;
@@ -19,7 +18,7 @@ import java.util.Base64;
 
 @RequiredArgsConstructor
 public class InitialDownstreamHandler implements BedrockPacketHandler {
-    private final ProxyPlayerSession player;
+    protected final ProxyPlayerSession player;
 
     @Override
     public boolean handle(ServerToClientHandshakePacket packet) {
@@ -40,8 +39,6 @@ public class InitialDownstreamHandler implements BedrockPacketHandler {
     }
 
     public boolean handle(StartGamePacket packet) {
-        this.player.getUpstream().setPacketHandler(new ConnectedUpstreamHandler());
-        this.player.getDownstream().setPacketHandler(new ConnectedDownstreamHandler(this.player));
         return false;
     }
 }
