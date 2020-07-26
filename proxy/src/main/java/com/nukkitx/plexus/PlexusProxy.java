@@ -118,8 +118,8 @@ public class PlexusProxy extends Proxy {
     }
 
     @Override
-    public Set<ProxiedPlayer> getPlayers() {
-        return null;
+    public Set<? extends ProxiedPlayer> getPlayers() {
+        return this.sessionManager.allPlayers();
     }
 
     @Override
@@ -153,6 +153,6 @@ public class PlexusProxy extends Proxy {
 
     @Override
     public int getOnlineCount() {
-        return 0;
+        return this.getPlayers().size();
     }
 }

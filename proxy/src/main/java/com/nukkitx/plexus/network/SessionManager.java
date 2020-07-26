@@ -1,14 +1,14 @@
 package com.nukkitx.plexus.network;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.nukkitx.math.GenericMath;
 import com.nukkitx.plexus.network.session.ProxyPlayerSession;
 import lombok.Getter;
 
 import javax.annotation.Nullable;
-import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.*;
 
@@ -67,8 +67,8 @@ public class SessionManager {
         return found;
     }
 
-    public List<ProxyPlayerSession> allPlayers() {
-        return ImmutableList.copyOf(playerSessions.values());
+    public Set<ProxyPlayerSession> allPlayers() {
+        return ImmutableSet.copyOf(playerSessions.values());
     }
 
     private void adjustPoolSize() {
